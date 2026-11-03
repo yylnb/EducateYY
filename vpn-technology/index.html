@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VPN 原理图解 · 从 DNS 到加密隧道</title>
+<meta name="description" content="用图解讲清 VPN 的工作流程：DNS 解析、TLS 证书、Hysteria2 / VLESS / Reality 的原理与差异。">
+<style>
+:root{
+  --bg:#0d1117; --bg2:#161b22; --bg3:#1c2333; --line:#30363d;
+  --fg:#e6edf3; --fg2:#9aa7b4; --fg3:#6b7785;
+  --accent:#4d9fff; --accent2:#7c5cff;
+  --green:#3fb950; --amber:#d29922; --red:#f85149; --cyan:#39c5cf;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:var(--bg); color:var(--fg); line-height:1.75; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:940px;margin:0 auto;padding:0 22px}
+
+/* ── Hero ── */
+header{
+  position:relative; padding:88px 0 64px; overflow:hidden;
+  background:radial-gradient(ellipse 80% 60% at 50% -10%, rgba(77,159,255,.18), transparent 65%),
+             radial-gradient(ellipse 60% 50% at 85% 20%, rgba(124,92,255,.14), transparent 60%);
+  border-bottom:1px solid var(--line);
+}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:7px;font-size:12.5px;letter-spacing:.4px;
+  color:var(--cyan); background:rgba(57,197,207,.1); border:1px solid rgba(57,197,207,.28);
+  padding:5px 13px; border-radius:100px; margin-bottom:22px;
+}
+h1{font-size:clamp(30px,5vw,46px); line-height:1.25; letter-spacing:-.6px; font-weight:800; margin-bottom:16px}
+h1 span{
+  background:linear-gradient(100deg,var(--accent),var(--accent2) 60%,var(--cyan));
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+}
+.hero-sub{font-size:16.5px;color:var(--fg2);max-width:620px;line-height:1.8}
+
+/* ── TOC ── */
+.toc{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px;
+  margin-top:38px;
+}
+.toc a{
+  display:flex;align-items:center;gap:9px;padding:12px 15px;border-radius:10px;
+  background:var(--bg2); border:1px solid var(--line); color:var(--fg2);
+  text-decoration:none; font-size:14px; transition:.18s;
+}
+.toc a:hover{border-color:var(--accent);color:var(--fg);transform:translateY(-1px)}
+.toc .n{color:var(--accent);font-family:var(--mono);font-size:12px;font-weight:700}
+
+/* ── Section ── */
+section{padding:62px 0;border-bottom:1px solid var(--line)}
+section:last-of-type{border-bottom:none}
+.sec-head{display:flex;align-items:baseline;gap:13px;margin-bottom:9px}
+.sec-num{
+  font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent);
+  background:rgba(77,159,255,.1);border:1px solid rgba(77,159,255,.25);
+  padding:3px 9px;border-radius:6px;flex-shrink:0;
+}
+h2{font-size:clamp(22px,3.4vw,30px);font-weight:750;letter-spacing:-.3px}
+.sec-sub{color:var(--fg2);font-size:15px;margin-bottom:30px;max-width:660px}
+h3{font-size:18px;font-weight:700;margin:34px 0 13px;display:flex;align-items:center;gap:9px}
+h3::before{content:'';width:3px;height:17px;background:var(--accent);border-radius:2px}
+
+p{margin-bottom:15px;color:#c9d4e0}
+strong{color:var(--fg);font-weight:650}
+code{
+  font-family:var(--mono);font-size:.875em;background:rgba(110,118,129,.18);
+  padding:2px 6px;border-radius:5px;color:#a5d6ff;
+}
+
+/* ── Flow diagram ── */
+.flow{
+  background:var(--bg2);border:1px solid var(--line);border-radius:14px;
+  padding:26px 22px;margin:22px 0;overflow-x:auto;
+}
+.flow-step{
+  display:flex;gap:15px;align-items:flex-start;padding:14px 0;
+  border-bottom:1px dashed rgba(48,54,61,.85);
+}
+.flow-step:last-child{border-bottom:none}
+.flow-ico{
+  width:34px;height:34px;flex-shrink:0;border-radius:9px;display:grid;place-items:center;
+  font-size:15px;background:var(--bg3);border:1px solid var(--line);
+}
+.flow-body{flex:1;min-width:0}
+.flow-t{font-weight:650;font-size:14.5px;margin-bottom:3px}
+.flow-d{font-size:13.5px;color:var(--fg2);line-height:1.65}
+.tag{
+  display:inline-block;font-size:11px;font-family:var(--mono);padding:1px 7px;
+  border-radius:5px;margin-left:7px;vertical-align:middle;font-weight:600;
+}
+.tag.dns{background:rgba(77,159,255,.14);color:var(--accent);border:1px solid rgba(77,159,255,.3)}
+.tag.cert{background:rgba(63,185,80,.14);color:var(--green);border:1px solid rgba(63,185,80,.3)}
+.tag.crypto{background:rgba(210,153,34,.14);color:var(--amber);border:1px solid rgba(210,153,34,.3)}
+.tag.obfs{background:rgba(124,92,255,.16);color:#a78bfa;border:1px solid rgba(124,92,255,.32)}
+
+/* ── Card grid ── */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(258px,1fr));gap:14px;margin:22px 0}
+.card{
+  background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:19px 18px;
+  transition:.18s;
+}
+.card:hover{border-color:rgba(77,159,255,.5);transform:translateY(-2px)}
+.card h4{font-size:15px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.card p{font-size:13.5px;color:var(--fg2);margin:0;line-height:1.7}
+
+/* ── Table ── */
+.tbl-wrap{overflow-x:auto;margin:22px 0;border:1px solid var(--line);border-radius:12px}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
+th{
+  background:var(--bg3);text-align:left;padding:11px 15px;font-weight:650;
+  font-size:12.5px;color:var(--fg2);white-space:nowrap;border-bottom:1px solid var(--line);
+}
+td{padding:11px 15px;border-bottom:1px solid rgba(48,54,61,.6);color:#c9d4e0}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(77,159,255,.04)}
+.yes{color:var(--green);font-weight:650}
+.no{color:var(--red);font-weight:650}
+.maybe{color:var(--amber);font-weight:650}
+
+/* ── Callout ── */
+.note{
+  border-left:3px solid var(--accent);background:rgba(77,159,255,.07);
+  padding:15px 18px;border-radius:0 10px 10px 0;margin:20px 0;font-size:14px;color:#c9d4e0;
+}
+.note.warn{border-color:var(--amber);background:rgba(210,153,34,.07)}
+.note.ok{border-color:var(--green);background:rgba(63,185,80,.07)}
+.note b{color:var(--fg)}
+
+/* ── Analogy box ── */
+.analogy{
+  display:grid;grid-template-columns:1fr 1fr;gap:0;margin:22px 0;
+  border:1px solid var(--line);border-radius:12px;overflow:hidden;
+}
+.analogy>div{padding:20px 18px}
+.analogy>div:first-child{background:var(--bg2);border-right:1px solid var(--line)}
+.analogy h5{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--fg3);margin-bottom:9px;font-weight:700}
+.analogy p{font-size:14px;margin:0;color:var(--fg2)}
+.analogy .big{font-size:17px;font-weight:700;color:var(--fg);margin-bottom:6px}
+
+/* ── ASCII / diagram ── */
+.diagram{
+  font-family:var(--mono);font-size:12.5px;line-height:1.55;color:#8b98a5;
+  background:#0a0e14;border:1px solid var(--line);border-radius:12px;
+  padding:20px 18px;overflow-x:auto;margin:22px 0;white-space:pre;
+}
+.diagram .hl{color:var(--accent);font-weight:600}
+.diagram .g{color:var(--green)}
+.diagram .a{color:var(--amber)}
+.diagram .c{color:var(--cyan)}
+
+/* ── Footer ── */
+footer{padding:46px 0 60px;text-align:center;color:var(--fg3);font-size:13px}
+footer a{color:var(--accent);text-decoration:none}
+footer a:hover{text-decoration:underline}
+
+/* ── Mobile ── */
+@media(max-width:640px){
+  header{padding:60px 0 44px}
+  section{padding:46px 0}
+  .analogy{grid-template-columns:1fr}
+  .analogy>div:first-child{border-right:none;border-bottom:1px solid var(--line)}
+  .hero-sub{font-size:15px}
+}
+@media print{
+  body{background:#fff;color:#000}
+  .toc,footer{display:none}
+  section{page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="hero-badge">🌐 图解版 · 从零理解</div>
+    <h1>VPN 到底是怎么<span>运作</span>的？</h1>
+    <p class="hero-sub">
+      从域名解析到加密隧道，一张一张图讲清每个环节在做什么。为什么有的节点需要证书、有的不需要？为什么 Hysteria2 必须直连、WebSocket 却能走 CDN？
+    </p>
+    <nav class="toc">
+      <a href="#dns"><span class="n">01</span> DNS 是什么</a>
+      <a href="#cert"><span class="n">02</span> 证书是什么</a>
+      <a href="#handshake"><span class="n">03</span> 完整连接流程</a>
+      <a href="#hy2"><span class="n">04</span> Hysteria2 原理</a>
+      <a href="#compare"><span class="n">05</span> 四种协议对比</a>
+      <a href="#cdn"><span class="n">06</span> 为什么走不了 CDN</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- 01 DNS -->
+<section id="dns">
+  <div class="sec-head"><span class="sec-num">01</span><h2>DNS：互联网的电话簿</h2></div>
+  <p class="sec-sub">把人类友好的域名，翻译成机器能连的 IP 地址。</p>
+
+  <div class="diagram">你输入  <span class="hl">hy2.leonyeung.com</span>
+           ↓  <span class="c">DNS 查询</span>
+得到    <span class="g">107.173.141.27</span>
+           ↓
+你的手机连这个 IP</div>
+
+  <p><strong>没有 DNS 会怎样？</strong>你就得背 IP 地址 —— 每次上百度都要输入 <code>110.242.68.66</code>。</p>
+
+  <h3>常见记录类型</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>类型</th><th>作用</th><th>例子</th></tr></thead>
+      <tbody>
+        <tr><td><code>A</code></td><td>域名 → IPv4 地址</td><td><code>hy2.leonyeung.com → 107.173.141.27</code></td></tr>
+        <tr><td><code>AAAA</code></td><td>域名 → IPv6 地址</td><td><code>→ 2001:db8::1</code></td></tr>
+        <tr><td><code>CNAME</code></td><td>别名，指向另一个域名</td><td><code>www → leonyeung.com</code></td></tr>
+        <tr><td><code>MX</code></td><td>指定邮件服务器</td><td><code>@ → route1.mx.cloudflare.net</code></td></tr>
+        <tr><td><code>TXT</code></td><td>文本记录（验证/反垃圾）</td><td>SPF、DKIM</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <b>关键点：</b>DNS 不加密任何东西，它只是个「查询服务」，负责告诉你该连哪个 IP。
+  </div>
+</section>
+
+<!-- 02 证书 -->
+<section id="cert">
+  <div class="sec-head"><span class="sec-num">02</span><h2>证书：服务器的身份证</h2></div>
+  <p class="sec-sub">证明「这台服务器真的是它声称的那个域名」。</p>
+
+  <h3>没有证书会发生什么</h3>
+  <p>你的手机连上某个服务器，服务器说「我是 hy2.leonyeung.com」—— <strong>你怎么知道它没骗你？</strong></p>
+  <p>中间人可以冒充服务器，把你的所有流量偷走。这就是「中间人攻击」。</p>
+
+  <h3>证书如何解决</h3>
+  <div class="flow">
+    <div class="flow-step">
+      <div class="flow-ico">🔐</div>
+      <div class="flow-body">
+        <div class="flow-t">服务器出示证书</div>
+        <div class="flow-d">证书由受信任的 CA（如 Let's Encrypt）签发，写明「此证书颁发给 hy2.leonyeung.com」</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-ico">🔍</div>
+      <div class="flow-body">
+        <div class="flow-t">手机验证签名</div>
+        <div class="flow-d">检查 CA 的签名是否有效——伪造的证书签不出合法签名</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-ico">✅</div>
+      <div class="flow-body">
+        <div class="flow-t">确认身份，建立加密</div>
+        <div class="flow-d">双方协商出会话密钥，后续数据全部加密传输</div>
+      </div>
+    </div>
+  </div>
+
+  <h3>证书做两件事</h3>
+  <div class="cards">
+    <div class="card">
+      <h4>🪪 身份验证</h4>
+      <p>确认服务器不是冒牌货，防止中间人窃听</p>
+    </div>
+    <div class="card">
+      <h4>🔑 加密协商</h4>
+      <p>让双方安全地商定加密密钥，之后的数据都是密文</p>
+    </div>
+  </div>
+
+  <div class="analogy">
+    <div>
+      <h5>DNS</h5>
+      <div class="big">查电话簿</div>
+      <p>得到「去哪里找」——域名对应的 IP 地址</p>
+    </div>
+    <div>
+      <h5>证书</h5>
+      <div class="big">看身份证</div>
+      <p>确认「是不是真的」——服务器身份是否可信</p>
+    </div>
+  </div>
+</section>
+
+<!-- 03 完整流程 -->
+<section id="handshake">
+  <div class="sec-head"><span class="sec-num">03</span><h2>完整连接流程</h2></div>
+  <p class="sec-sub">DNS 和证书如何配合，完成一次安全连接。</p>
+
+  <div class="flow">
+    <div class="flow-step">
+      <div class="flow-ico">1️⃣</div>
+      <div class="flow-body">
+        <div class="flow-t">输入域名<span class="tag dns">DNS</span></div>
+        <div class="flow-d">你在客户端点击「连接 hy2.leonyeung.com」</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-ico">2️⃣</div>
+      <div class="flow-body">
+        <div class="flow-t">DNS 解析<span class="tag dns">DNS</span></div>
+        <div class="flow-d">查询得到 IP：<code>107.173.141.27</code></div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-ico">3️⃣</div>
+      <div class="flow-body">
+        <div class="flow-t">TCP / QUIC 连接<span class="tag crypto">传输层</span></div>
+        <div class="flow-d">手机连到 <code>107.173.141.27:30443</code></div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-ico">4️⃣</div>
+      <div class="flow-body">
+        <div class="flow-t">TLS 握手 · 服务器出示证书<span class="tag cert">证书</span></div>
+        <div class="flow-d">服务器：「我是 hy2.leonyeung.com」，并附上 Let's Encrypt 签发的证书</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-ico">5️⃣</div>
+      <div class="flow-body">
+        <div class="flow-t">手机验证证书<span class="tag cert">证书</span></div>
+        <div class="flow-d">域名匹配 ✓　签发者可信 ✓　未过期 ✓</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-ico">6️⃣</div>
+      <div class="flow-body">
+        <div class="flow-t">协商会话密钥<span class="tag crypto">加密</span></div>
+        <div class="flow-d">此后所有数据都用这个密钥加密，中间人只能看到密文</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-ico">7️⃣</div>
+      <div class="flow-body">
+        <div class="flow-t">开始传输</div>
+        <div class="flow-d">加密隧道建立完成，可以安全传输数据</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note ok">
+    <b>记住这个分工：</b>DNS 负责「去哪找」（地址），证书负责「是不是真的」（身份）。两者缺一不可。
+  </div>
+</section>
+
+<!-- 04 Hysteria2 -->
+<section id="hy2">
+  <div class="sec-head"><span class="sec-num">04</span><h2>Hysteria2 是怎么工作的</h2></div>
+  <p class="sec-sub">基于 QUIC 的高速代理协议，专为恶劣网络环境设计。</p>
+
+  <h3>核心目标</h3>
+  <div class="diagram">不加隧道：
+  手机 → 直接访问 google.com
+  中间设备能看到「你要访问 google.com」<span class="a">→ 可能被阻断</span>
+
+加隧道：
+  手机 → <span class="hl">加密流量</span> → 服务器 → google.com
+  中间只能看到「你在和某个 IP 通信」<span class="g">→ 不知道内容</span></div>
+
+  <h3>五个阶段</h3>
+  <div class="flow">
+    <div class="flow-step">
+      <div class="flow-ico">🌐</div>
+      <div class="flow-body">
+        <div class="flow-t">阶段 1 · 找到服务器<span class="tag dns">DNS</span></div>
+        <div class="flow-d">解析 <code>hy2.leonyeung.com</code> → <code>107.173.141.27</code></div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-ico">🔐</div>
+      <div class="flow-body">
+        <div class="flow-t">阶段 2 · TLS 握手<span class="tag cert">证书</span><span class="tag crypto">加密</span></div>
+        <div class="flow-d">QUIC 握手 + 服务器出示 Let's Encrypt 证书 + 协商会话密钥</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-ico">🔑</div>
+      <div class="flow-body">
+        <div class="flow-t">阶段 3 · 身份认证</div>
+        <div class="flow-d">手机发送密码（<code>auth</code> 字段），服务器校验。这是 Hysteria2 自己的认证，跑在已加密的通道内</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-ico">🎭</div>
+      <div class="flow-body">
+        <div class="flow-t">阶段 4 · 混淆<span class="tag obfs">Salamander</span></div>
+        <div class="flow-d">给所有 UDP 包加一层「噪声伪装」，让流量看起来像随机字节，中间设备无法识别协议特征</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-ico">📦</div>
+      <div class="flow-body">
+        <div class="flow-t">阶段 5 · 传输数据</div>
+        <div class="flow-d">请求打包 → 加密 → 加混淆 → 通过 QUIC(UDP) 发给服务器；服务器解开后替你去访问目标网站</div>
+      </div>
+    </div>
+  </div>
+
+  <h3>三个技术特点</h3>
+  <div class="cards">
+    <div class="card">
+      <h4>⚡ 基于 QUIC（UDP）</h4>
+      <p>1 次握手就建立连接（TCP 要 3 次）；丢包恢复快，弱网表现远好于 TCP</p>
+    </div>
+    <div class="card">
+      <h4>🚀 Brutal 拥塞控制</h4>
+      <p>按设定带宽强行发包，不管丢包。丢包 10-20% 的网络里仍能跑满带宽</p>
+    </div>
+    <div class="card">
+      <h4>🎭 Salamander 混淆</h4>
+      <p>让 UDP 流量看起来像随机噪声，中间设备无法识别这是代理协议</p>
+    </div>
+  </div>
+
+  <h3>真实配置对照</h3>
+  <div class="diagram">地址:  <span class="hl">hy2.leonyeung.com</span>
+端口:  30443 (UDP)
+密码:  &lt;auth&gt;
+SNI:   hy2.leonyeung.com     <span class="c">← TLS 证书的域名</span>
+ALPN:  h3                     <span class="c">← 使用 HTTP/3 (QUIC)</span>
+混淆:  salamander             <span class="c">← 加噪声</span>
+证书:  Let's Encrypt          <span class="g">← 证明身份</span></div>
+
+  <div class="note warn">
+    <b>注意代价：</b>Brutal 拥塞控制会占用较多带宽，对共享网络不友好。这是速度换来的。
+  </div>
+</section>
+
+<!-- 05 协议对比 -->
+<section id="compare">
+  <div class="sec-head"><span class="sec-num">05</span><h2>四种协议对比</h2></div>
+  <p class="sec-sub">什么时候需要证书？什么时候不需要？</p>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr><th>协议</th><th>传输层</th><th>需要 DNS</th><th>需要证书</th><th>说明</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Hysteria2</strong></td>
+          <td>QUIC / UDP</td>
+          <td class="yes">✓ 需要</td>
+          <td class="yes">✓ 需要</td>
+          <td>速度最快，弱网最优，需真实证书</td>
+        </tr>
+        <tr>
+          <td><strong>VLESS + TLS + WS</strong></td>
+          <td>TCP</td>
+          <td class="yes">✓ 需要</td>
+          <td class="yes">✓ 需要</td>
+          <td>标准 HTTPS，兼容性最好，可走 CDN</td>
+        </tr>
+        <tr>
+          <td><strong>VLESS + Reality</strong></td>
+          <td>TCP</td>
+          <td class="yes">✓ 需要</td>
+          <td class="no">✗ 不需要</td>
+          <td>借用目标网站（如 Cloudflare）的证书伪装</td>
+        </tr>
+        <tr>
+          <td><strong>VMess + TLS</strong></td>
+          <td>TCP</td>
+          <td class="yes">✓ 需要</td>
+          <td class="yes">✓ 需要</td>
+          <td>老牌协议，兼容性好</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>为什么 Reality 不需要证书？</h3>
+  <div class="diagram"><span class="hl">普通 TLS：</span>
+  你的服务器出示<span class="a">自己的证书</span> → 手机验证 → 不在信任列表就失败
+
+<span class="g">Reality：</span>
+  你的服务器把手机的握手请求<span class="c">原样转发</span>给 cloudflare.com
+  → Cloudflare 返回<span class="g">它的真证书</span>
+  → 手机看到「真的 Cloudflare 证书」→ 验证通过
+  → 中间人看到的也是「你在访问 Cloudflare」</div>
+
+  <p>Reality 的精妙之处：<strong>技术上没有伪造任何东西</strong>。它只是把连接「借道」给了真实的 Cloudflare，让审查者看到的是完全合法的流量。</p>
+</section>
+
+<!-- 06 CDN -->
+<section id="cdn">
+  <div class="sec-head"><span class="sec-num">06</span><h2>为什么 Hysteria2 走不了 CDN</h2></div>
+  <p class="sec-sub">Cloudflare 能代理什么、不能代理什么。</p>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Cloudflare 免费版支持</th><th>不支持</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="yes">HTTP / HTTPS<br>WebSocket<br>gRPC</td>
+          <td class="no">原始 TCP / UDP 流量<br>QUIC（Hysteria2）<br>Reality（需原始 TLS 握手）</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>结论</h3>
+  <div class="cards">
+    <div class="card">
+      <h4>🚀 Hysteria2</h4>
+      <p><strong>必须直连</strong>（灰云 DNS）。因为它是 UDP/QUIC，CDN 不支持代理</p>
+    </div>
+    <div class="card">
+      <h4>🕵️ VLESS + Reality</h4>
+      <p><strong>必须直连</strong>。Reality 需要原始 TLS 握手，CDN 会破坏这个过程</p>
+    </div>
+    <div class="card">
+      <h4>🌐 VLESS + WS + TLS</h4>
+      <p><strong>可以走 CDN</strong>（橙云）。标准 HTTPS + WebSocket，CDN 完全支持</p>
+    </div>
+  </div>
+
+  <h3>DNS 记录中的两种状态</h3>
+  <div class="analogy">
+    <div>
+      <h5>🟠 橙云（Proxied）</h5>
+      <div class="big">流量经过 Cloudflare</div>
+      <p>隐藏真实 IP、防 DDoS、CDN 加速。适用于网站和 WebSocket 类代理</p>
+    </div>
+    <div>
+      <h5>⚪ 灰云（DNS Only）</h5>
+      <div class="big">仅提供解析</div>
+      <p>Cloudflare 只告诉客户端 IP 地址，流量直接连服务器。Hysteria2 / Reality 必须用这个</p>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>常见误解：</b>「VPN 节点不走 CDN，是不是就不用加 DNS 记录了？」<br>
+    <strong>不是。</strong>只要你的域名 NS 托管在 Cloudflare，就必须在 CF 里加 A 记录——否则域名根本无法解析。加记录 ≠ 走 CDN，灰云状态下流量完全是直连的。
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>VPN 原理图解 · 持续更新中</p>
+    <p style="margin-top:6px;font-size:12px;color:#6b7785">Part of <a href="/" style="color:#4d9fff">edu.leonyeung.com</a></p>
+    <p style="margin-top:8px">
+      <a href="/">← 返回 edu 首页</a>
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

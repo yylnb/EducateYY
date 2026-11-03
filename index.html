@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EducateYY · 知识库</title>
+<meta name="description" content="EducateYY —— 技术知识整理与图解，把复杂原理讲清楚。">
+<style>
+:root{
+  --bg:#0a0e14; --bg2:#121821; --bg3:#1a2230; --line:#243040;
+  --fg:#e8eef7; --fg2:#94a3b8; --fg3:#64748b;
+  --accent:#4d9fff; --accent2:#7c5cff; --green:#3fb950; --amber:#d29922;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:var(--bg); color:var(--fg); line-height:1.7; -webkit-font-smoothing:antialiased;
+  min-height:100vh; display:flex; flex-direction:column;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px;width:100%}
+
+/* ── Hero ── */
+header{
+  position:relative; padding:100px 0 72px; overflow:hidden;
+  background:radial-gradient(ellipse 70% 55% at 50% -15%, rgba(77,159,255,.20), transparent 62%),
+             radial-gradient(ellipse 55% 45% at 88% 15%, rgba(124,92,255,.15), transparent 58%);
+  border-bottom:1px solid var(--line);
+}
+.badge{
+  display:inline-flex;align-items:center;gap:7px;font-size:12.5px;letter-spacing:.5px;
+  color:var(--accent); background:rgba(77,159,255,.1); border:1px solid rgba(77,159,255,.3);
+  padding:5px 14px; border-radius:100px; margin-bottom:24px;
+}
+h1{font-size:clamp(34px,5.5vw,54px); line-height:1.2; letter-spacing:-1px; font-weight:800; margin-bottom:18px}
+h1 span{
+  background:linear-gradient(100deg,var(--accent),var(--accent2) 55%,#39c5cf);
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+}
+.lead{font-size:17px;color:var(--fg2);max-width:560px;line-height:1.8}
+
+/* ── Section ── */
+main{flex:1;padding:64px 0}
+.sec-title{font-size:13px;letter-spacing:2px;text-transform:uppercase;color:var(--fg3);font-weight:700;margin-bottom:22px;display:flex;align-items:center;gap:12px}
+.sec-title::after{content:'';flex:1;height:1px;background:var(--line)}
+
+/* ── Card grid ── */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;margin-bottom:56px}
+.card{
+  position:relative; display:block; padding:26px 24px; border-radius:16px;
+  background:linear-gradient(160deg,var(--bg2),var(--bg3));
+  border:1px solid var(--line); text-decoration:none; color:inherit;
+  transition:.22s cubic-bezier(.4,0,.2,1); overflow:hidden;
+}
+.card::before{
+  content:''; position:absolute; inset:0; opacity:0; transition:.22s;
+  background:radial-gradient(circle at 30% 0%, rgba(77,159,255,.14), transparent 65%);
+}
+.card:hover{border-color:rgba(77,159,255,.55); transform:translateY(-3px); box-shadow:0 12px 32px rgba(0,0,0,.4)}
+.card:hover::before{opacity:1}
+.card > *{position:relative}
+.card-ico{font-size:28px;margin-bottom:14px;display:block}
+.card h3{font-size:18px;font-weight:700;margin-bottom:8px;letter-spacing:-.2px}
+.card p{font-size:14px;color:var(--fg2);line-height:1.7;margin-bottom:14px}
+.card .tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{
+  font-size:11.5px;font-family:var(--mono);padding:2px 9px;border-radius:6px;
+  background:rgba(77,159,255,.1);color:var(--accent);border:1px solid rgba(77,159,255,.22);
+}
+.card .arrow{
+  position:absolute;top:26px;right:24px;color:var(--fg3);font-size:18px;
+  transition:.22s;
+}
+.card:hover .arrow{color:var(--accent);transform:translateX(4px)}
+
+/* ── Placeholder card ── */
+.card.soon{
+  background:var(--bg2); border-style:dashed; cursor:default;
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
+  min-height:180px; text-align:center;
+}
+.card.soon:hover{transform:none; border-color:var(--line); box-shadow:none}
+.card.soon .plus{font-size:32px;color:var(--fg3);margin-bottom:10px;line-height:1}
+.card.soon h3{color:var(--fg3);font-size:15px;font-weight:600;margin-bottom:4px}
+.card.soon p{color:var(--fg3);font-size:13px;margin:0}
+
+/* ── Footer ── */
+footer{
+  padding:36px 0 48px; border-top:1px solid var(--line);
+  color:var(--fg3); font-size:13px; text-align:center;
+}
+footer a{color:var(--fg2); text-decoration:none; transition:.15s}
+footer a:hover{color:var(--accent)}
+
+@media(max-width:640px){
+  header{padding:64px 0 48px}
+  main{padding:44px 0}
+  .grid{grid-template-columns:1fr;gap:14px}
+  .lead{font-size:15.5px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="badge">📚 EducateYY</div>
+    <h1>把复杂的东西<br><span>讲清楚</span></h1>
+    <p class="lead">
+      技术原理图解与知识整理。每篇都力求从「为什么」讲起，用流程图和对照表代替大段文字。
+    </p>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+
+    <div class="sec-title">已上线</div>
+    <div class="grid">
+
+      <a class="card" href="/vpn-technology/">
+        <span class="arrow">→</span>
+        <span class="card-ico">🌐</span>
+        <h3>VPN 原理图解</h3>
+        <p>从 DNS 解析到加密隧道，讲清 TLS 证书、Hysteria2、VLESS Reality 的工作机制，以及为什么某些协议走不了 CDN。</p>
+        <div class="tags">
+          <span class="tag">DNS</span>
+          <span class="tag">TLS</span>
+          <span class="tag">Hysteria2</span>
+          <span class="tag">Reality</span>
+        </div>
+      </a>
+
+      <div class="card soon">
+        <div class="plus">+</div>
+        <h3>更多内容准备中</h3>
+        <p>持续更新</p>
+      </div>
+
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p><a href="https://leonyeung.com">leonyeung.com</a> · EducateYY</p>
+  </div>
+</footer>
+
+</body>
+</html>
