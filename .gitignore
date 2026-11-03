@@ -8,5 +8,7 @@ Thumbs.db
 
 # 本地环境
 node_modules/
+dist/
+.playwright-cli/
 .env
 .env.local

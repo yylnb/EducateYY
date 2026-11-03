@@ -18,22 +18,26 @@
 
 - **图解优先**：用流程图、对照表代替大段文字
 - **从「为什么」讲起**：不假设读者已有背景
-- **单文件、零依赖**：每篇文章就是一个 HTML 文件，内联 CSS，不依赖任何框架或构建工具
+- **静态多页面**：页面以 HTML/CSS 为主，首页使用 Shaders 提供可回退的 WebGPU 点阵效果
 
 ---
 
-## 🚀 本地预览
+## 🚀 本地预览与构建
 
-纯静态站点，直接用浏览器打开即可：
+需要 Node.js 22.12 或更高版本。安装依赖后启动开发服务器：
 
-```bash
-# 方式一：直接打开
-open index.html
-
-# 方式二：起个本地服务器（推荐，路径行为与线上一致）
-python3 -m http.server 8000
-# 然后访问 http://localhost:8000
+```sh
+npm install
+npm run dev
 ```
+
+生成可部署的静态文件：
+
+```sh
+npm run build
+```
+
+构建产物位于 `dist/`，包含首页与 `/vpn-technology/` 页面。可用 `npm run preview` 本地预览构建结果。
 
 ---
 
@@ -44,6 +48,10 @@ EducateYY/
 ├── index.html                  # 首页（内容导航）
 ├── vpn-technology/
 │   └── index.html              # VPN 原理图解
+├── src/
+│   └── main.js                 # 首页 WebGPU 效果与回退
+├── styles.css                  # 共用视觉样式
+├── package.json
 └── README.md
 ```
 
@@ -53,8 +61,9 @@ EducateYY/
 
 ## 🎨 技术栈
 
-- 纯 HTML + CSS（内联，无外部依赖）
-- 深色主题，参考 GitHub Dark 配色
+- HTML + CSS + Vite 多页面构建
+- Shaders JavaScript / WebGPU（仅用于首页装饰效果）
+- WebGPU 不可用或用户偏好减少动态效果时使用静态点阵
 - 响应式布局，适配移动端
 - 支持打印样式（可直接导出 PDF）
 
