@@ -10,6 +10,41 @@ if (articleToc) {
   mobileLayout.addEventListener("change", updateToc);
 }
 
+const motionDemos = document.querySelectorAll(".motion-demo");
+
+if ("IntersectionObserver" in window) {
+  const motionObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        entry.target.classList.toggle("is-visible", entry.isIntersecting);
+      });
+    },
+    { rootMargin: "80px" },
+  );
+
+  motionDemos.forEach((demo) => motionObserver.observe(demo));
+} else {
+  motionDemos.forEach((demo) => demo.classList.add("is-visible"));
+}
+
+const motionToggle = document.querySelector(".motion-toggle");
+const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+if (motionToggle) {
+  const updateMotionToggle = () => {
+    motionToggle.hidden = motionPreference.matches;
+  };
+
+  motionToggle.addEventListener("click", () => {
+    const paused = document.body.classList.toggle("demos-paused");
+    motionToggle.setAttribute("aria-pressed", String(paused));
+    motionToggle.textContent = paused ? "继续动画" : "暂停动画";
+  });
+
+  updateMotionToggle();
+  motionPreference.addEventListener("change", updateMotionToggle);
+}
+
 const canvas = document.querySelector("#hero-shader");
 const art = canvas?.closest(".hero-art");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
