@@ -72,7 +72,7 @@ if (canvas && art && !reducedMotion && navigator.gpu) {
           {
             type: "DotGrid",
             props: {
-              color: "#2854d8",
+              color: "#111111",
               density: 34,
               dotSize: 0.2,
               offset: 0.5,
